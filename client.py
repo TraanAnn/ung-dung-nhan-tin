@@ -15,6 +15,11 @@ username = None
 root = None
 current_window = None
 
+# ===== BÁO ĐANG GÕ =====
+last_typing_sent = 0
+typing_users = {}
+is_typing = False
+
 # ===== AVATAR ỔN ĐỊNH =====
 AVATARS = ["😄", "😎", "🤖", "🐱", "🐶", "🔥", "🌟", "🍀"]
 
@@ -38,7 +43,7 @@ def replace_emoji(text):
         text = text.replace(k, v)
     return text
 
-# ===== EMOJI BAY (THÊM MỚI – KHÔNG ẢNH HƯỞNG CODE CŨ) =====
+# ===== EMOJI BAY  =====
 FLY_EMOJI_KEYWORDS = ["❤️", "🔥", "👍", "😄", "😢", "😃", "😉"]
 
 def fly_emoji(emoji):
@@ -180,11 +185,20 @@ def open_chat():
         root, state=tk.DISABLED, font=("Arial", 11))
     chat_box.pack(padx=15, pady=15, fill=tk.BOTH, expand=True)
 
+    typing_label = tk.Label(
+        root,
+        text="",
+        font=("Arial", 9, "italic"),
+        fg="gray"
+    )
+    typing_label.pack(anchor="w", padx=18, pady=(0, 5))
+
     input_frame = tk.Frame(root)
     input_frame.pack(fill=tk.X, padx=15, pady=(0, 15))
 
     entry = tk.Entry(input_frame)
     entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+    entry.bind("<KeyPress>", lambda e: send_typing())
 
     send_btn = tk.Button(input_frame, text="Gửi", width=10)
     send_btn.pack(side=tk.RIGHT)
@@ -198,13 +212,33 @@ def open_chat():
 
     my_avatar = get_avatar_by_username(username)
 
+    def send_typing():
+        global last_typing_sent, is_typing
+        now = datetime.now().timestamp()
+        if not is_typing or now - last_typing_sent > 1.2:
+            try:
+                client.send(f"TYPING|{username}\n".encode())
+            except:
+                pass
+            last_typing_sent = now
+            is_typing = True
+
+    def stop_typing():
+        global is_typing
+        if is_typing:
+            try:
+                client.send(f"STOP_TYPING|{username}\n".encode())
+            except:
+                pass
+            is_typing = False
+
     def send_msg(event=None):
         msg = entry.get().strip()
         if not msg:
             return
 
         msg = replace_emoji(msg)
-        check_fly_effect(msg)   # 🔥 THÊM EMOJI BAY
+        check_fly_effect(msg)   # THÊM EMOJI BAY
 
         client.send(f"{username}: {msg}\n".encode())
         winsound.MessageBeep()
@@ -219,6 +253,11 @@ def open_chat():
         chat_box.see(tk.END)
 
         entry.delete(0, tk.END)
+        stop_typing()
+
+    def check_entry_empty(event=None):
+        if entry.get().strip() == "":
+            stop_typing()
 
     def receive():
         buf = ""
@@ -229,13 +268,57 @@ def open_chat():
             buf += data.decode()
             while "\n" in buf:
                 line, buf = buf.split("\n", 1)
+                # ===== TYPING INDICATOR =====
+                if line.startswith("TYPING|"):
+                    sender = line.split("|", 1)[1]
+
+                    if sender == username:
+                        continue  # BỎ QUA CHÍNH MÌNH
+
+                    typing_users[sender] = datetime.now().timestamp()
+
+                    def update_typing():
+                        now = datetime.now().timestamp()
+                        active = [
+                            u for u, t in typing_users.items()
+                            if now - t < 2
+                        ]
+                        if active:
+                            typing_label.config(
+                                text=", ".join(active) + " đang nhập tin nhắn..."
+                            )
+                        else:
+                            typing_label.config(text="")
+
+                    root.after(0, update_typing)
+                    continue
+
+                if line.startswith("STOP_TYPING|"):
+                    sender = line.split("|", 1)[1]
+
+                    if sender == username:
+                        continue  # BỎ QUA CHÍNH MÌNH
+
+                    typing_users.pop(sender, None)
+
+                    def update_typing():
+                        if typing_users:
+                            typing_label.config(
+                                text=", ".join(typing_users.keys()) + " đang nhập tin nhắn..."
+                            )
+                        else:
+                            typing_label.config(text="")
+
+                    root.after(0, update_typing)
+                    continue
+
                 if ": " in line:
                     sender, content = line.split(": ", 1)
                     if sender == username:
                         continue
 
                     content = replace_emoji(content)
-                    check_fly_effect(content)   # 🔥 EMOJI BAY KHI NHẬN
+                    check_fly_effect(content)   #  EMOJI BAY KHI NHẬN
 
                     avatar = get_avatar_by_username(sender)
                     t = datetime.now().strftime("%H:%M")
