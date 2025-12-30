@@ -1,15 +1,54 @@
 import socket
 import threading
 import tkinter as tk
-from tkinter import scrolledtext, messagebox
+import random
+from tkinter import scrolledtext, messagebox, simpledialog
 
 HOST = "127.0.0.1"
 PORT = 12345
 
+root = None
 client = None
 current_window = None
 username = None
 is_typing = False
+
+# ===== EMOJI =====
+EMOJI_MAP = {
+    ":)": "😄",
+    ":(": "😢",
+    ":D": "😃",
+    ";)": "😉",
+    ":heart:": "❤️",
+    ":thumbsup:": "👍",
+    ":fire:": "🔥"
+}
+
+FLY_EMOJI_KEYWORDS = ["❤️", "🔥", "👍", "😄", "😢", "😃", "😉"]
+
+def replace_emoji(text):
+    for k, v in EMOJI_MAP.items():
+        text = text.replace(k, v)
+    return text
+
+# ===== FLY EMOJI =====
+def fly_emoji(emoji):
+    lbl = tk.Label(root, text=emoji, font=("Arial", 24))
+    lbl.place(x=random.randint(20, 350), y=450)
+
+    def animate(y):
+        if y < 0:
+            lbl.destroy()
+            return
+        lbl.place(y=y)
+        root.after(30, lambda: animate(y - 10))
+
+    animate(450)
+
+def check_fly_effect(text):
+    for emoji in FLY_EMOJI_KEYWORDS:
+        if emoji in text:
+            fly_emoji(emoji)
 
 def connect_to_server():
     global client
@@ -137,6 +176,7 @@ def open_chat():
     if current_window:
         current_window.destroy()
 
+    global root
     root = tk.Tk()
     root.title(f"Chat App - {username}")
     root.geometry("600x700")
@@ -144,6 +184,22 @@ def open_chat():
 
     chat_box = scrolledtext.ScrolledText(root, state=tk.DISABLED, bg="white", font=("Arial", 11))
     chat_box.pack(padx=15, pady=15, fill=tk.BOTH, expand=True)
+
+    def recall_message(event):
+        try:
+            index = chat_box.index(f"@{event.x},{event.y}")
+            line_start = index.split(".")[0] + ".0"
+            line_end = index.split(".")[0] + ".end+2c"
+
+            tags = chat_box.tag_names(index)
+            if "me_msg" in tags or "me_name" in tags:
+                chat_box.config(state=tk.NORMAL)
+                chat_box.delete(line_start, line_end)
+                chat_box.config(state=tk.DISABLED)
+        except:
+            pass
+
+    chat_box.bind("<Double-Button-1>", recall_message)
 
     typing_label = tk.Label(root, text="", fg="gray", font=("Arial", 9), anchor="w", bg="#f0f2f5")
     typing_label.pack(fill=tk.X, padx=15)
@@ -173,21 +229,30 @@ def open_chat():
                 pass
 
     def send_msg(event=None):
-        msg = entry.get().strip()
-        if msg:
-            stop_typing()
-            full_msg = f"{username}: {msg}\n"
-            try:
-                client.send(full_msg.encode("utf-8"))
-                 # Local echo thủ công để tránh lặp
-                chat_box.config(state=tk.NORMAL)
-                chat_box.insert(tk.END, username + "\n", "me_name")
-                chat_box.insert(tk.END, msg + "\n\n", "me_msg")
-                chat_box.config(state=tk.DISABLED)
-                chat_box.see(tk.END)
-            except:
-                messagebox.showerror("Lỗi", "Không gửi được!")
-            entry.delete(0, tk.END)
+        msg = entry.get().strip()  # ✅ LẤY NỘI DUNG TỪ Ô NHẬP
+        if not msg:
+            return
+
+        msg = replace_emoji(msg)  # ✅ THAY EMOJI
+        check_fly_effect(msg)
+
+        stop_typing()
+        full_msg = f"{username}: {msg}\n"
+
+        try:
+            client.send(full_msg.encode("utf-8"))
+
+            # Local echo (hiển thị tin của mình)
+            chat_box.config(state=tk.NORMAL)
+            chat_box.insert(tk.END, username + "\n", "me_name")
+            chat_box.insert(tk.END, msg + "\n\n", "me_msg")
+            chat_box.config(state=tk.DISABLED)
+            chat_box.see(tk.END)
+
+        except:
+            messagebox.showerror("Lỗi", "Không gửi được!")
+
+        entry.delete(0, tk.END)
 
     entry.bind("<Key>", on_typing)
     entry.bind("<Return>", send_msg)
@@ -207,6 +272,8 @@ def open_chat():
         chat_box.config(state=tk.NORMAL)
         if ": " in msg:
             sender, content = msg.split(": ", 1)
+            content = replace_emoji(content)
+            check_fly_effect(content)
             if is_me:  # Chỉ dùng cho local echo
                 chat_box.insert(tk.END, sender + "\n", "me_name")
                 chat_box.insert(tk.END, content + "\n\n", "me_msg")
