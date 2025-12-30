@@ -1,27 +1,25 @@
 import socket
 import threading
 import tkinter as tk
-import random
 import winsound
 import hashlib
 from datetime import datetime
-from tkinter import scrolledtext, messagebox, simpledialog
+from tkinter import scrolledtext, messagebox
 
 HOST = "127.0.0.1"
 PORT = 12345
 
-root = None
 client = None
-current_window = None
 username = None
+root = None
+current_window = None
 
-# ===== AVATAR (ỔN ĐỊNH – KHÔNG BAO GIỜ LỆCH) =====
+# ===== AVATAR ỔN ĐỊNH =====
 AVATARS = ["😄", "😎", "🤖", "🐱", "🐶", "🔥", "🌟", "🍀"]
 
 def get_avatar_by_username(name):
     md5 = hashlib.md5(name.encode("utf-8")).hexdigest()
-    index = int(md5, 16) % len(AVATARS)
-    return AVATARS[index]
+    return AVATARS[int(md5, 16) % len(AVATARS)]
 
 # ===== EMOJI =====
 EMOJI_MAP = {
@@ -44,8 +42,7 @@ def connect_to_server():
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
         client.connect((HOST, PORT))
-        signal = client.recv(1024).decode().strip()
-        return signal == "READY"
+        return client.recv(1024).decode().strip() == "READY"
     except:
         messagebox.showerror("Lỗi", "Không thể kết nối server")
         return False
@@ -84,14 +81,13 @@ def register_screen():
         u = user_entry.get().strip()
         p = pass_entry.get().strip()
         if not u or not p:
-            status.config(text="Nhập đầy đủ")
+            status.config(text="Nhập đầy đủ thông tin")
             return
         client.send(f"REGISTER|{u}|{p}".encode())
-        res = client.recv(1024).decode()
-        if res == "SUCCESS":
+        if client.recv(1024).decode() == "SUCCESS":
             current_window.after(500, login_screen)
         else:
-            status.config(text="Tài khoản tồn tại")
+            status.config(text="Tài khoản đã tồn tại")
 
     tk.Button(current_window, text="Đăng ký",
               command=do_register, width=20).pack(pady=20)
@@ -170,10 +166,12 @@ def open_chat():
     send_btn = tk.Button(input_frame, text="Gửi", width=10)
     send_btn.pack(side=tk.RIGHT)
 
-    chat_box.tag_config("me", justify="right", foreground="#0084ff")
-    chat_box.tag_config("other", justify="left")
-    chat_box.tag_config("time_me", justify="right", font=("Arial", 8))
-    chat_box.tag_config("time_other", justify="left", font=("Arial", 8))
+    chat_box.tag_config("name_me", justify="right", foreground="#0084ff", font=("Arial", 11, "bold"))
+    chat_box.tag_config("name_other", justify="left", font=("Arial", 11, "bold"))
+    chat_box.tag_config("msg_me", justify="right")
+    chat_box.tag_config("msg_other", justify="left")
+    chat_box.tag_config("time_me", justify="right", font=("Arial", 8), foreground="gray")
+    chat_box.tag_config("time_other", justify="left", font=("Arial", 8), foreground="gray")
 
     my_avatar = get_avatar_by_username(username)
 
@@ -181,16 +179,20 @@ def open_chat():
         msg = entry.get().strip()
         if not msg:
             return
+
         msg = replace_emoji(msg)
         client.send(f"{username}: {msg}\n".encode())
         winsound.MessageBeep()
 
         t = datetime.now().strftime("%H:%M")
+
         chat_box.config(state=tk.NORMAL)
-        chat_box.insert(tk.END, f"{my_avatar} {username} : {msg}\n", "me")
+        chat_box.insert(tk.END, f"{my_avatar} {username}\n", "name_me")
+        chat_box.insert(tk.END, msg + "\n", "msg_me")
         chat_box.insert(tk.END, t + "\n\n", "time_me")
         chat_box.config(state=tk.DISABLED)
         chat_box.see(tk.END)
+
         entry.delete(0, tk.END)
 
     def receive():
@@ -203,13 +205,15 @@ def open_chat():
             while "\n" in buf:
                 line, buf = buf.split("\n", 1)
                 if ": " in line:
-                    s, c = line.split(": ", 1)
-                    if s == username:
+                    sender, content = line.split(": ", 1)
+                    if sender == username:
                         continue
-                    av = get_avatar_by_username(s)
+                    avatar = get_avatar_by_username(sender)
                     t = datetime.now().strftime("%H:%M")
+
                     chat_box.config(state=tk.NORMAL)
-                    chat_box.insert(tk.END, f"{av} {s} : {c}\n", "other")
+                    chat_box.insert(tk.END, f"{avatar} {sender}\n", "name_other")
+                    chat_box.insert(tk.END, content + "\n", "msg_other")
                     chat_box.insert(tk.END, t + "\n\n", "time_other")
                     chat_box.config(state=tk.DISABLED)
                     chat_box.see(tk.END)
