@@ -38,31 +38,31 @@ EMOJI_MAP = {
     ":fire:": "🔥"
 }
 
+FLY_EMOJI_KEYWORDS = ["❤️", "🔥", "👍", "😄", "😢", "😃", "😉"]
+
 def replace_emoji(text):
     for k, v in EMOJI_MAP.items():
         text = text.replace(k, v)
     return text
 
-# ===== EMOJI BAY  =====
-FLY_EMOJI_KEYWORDS = ["❤️", "🔥", "👍", "😄", "😢", "😃", "😉"]
-
+# ===== FLY EMOJI =====
 def fly_emoji(emoji):
     lbl = tk.Label(root, text=emoji, font=("Arial", 24))
-    lbl.place(x=random.randint(30, 400), y=520)
+    lbl.place(x=random.randint(20, 350), y=450)
 
     def animate(y):
         if y < 0:
             lbl.destroy()
             return
         lbl.place(y=y)
-        root.after(30, lambda: animate(y - 12))
+        root.after(30, lambda: animate(y - 10))
 
-    animate(520)
+    animate(450)
 
 def check_fly_effect(text):
-    for emo in FLY_EMOJI_KEYWORDS:
-        if emo in text:
-            fly_emoji(emo)
+    for emoji in FLY_EMOJI_KEYWORDS:
+        if emoji in text:
+            fly_emoji(emoji)
 
 # ================= SERVER =================
 def connect_to_server():
@@ -184,6 +184,41 @@ def open_chat():
     chat_box = scrolledtext.ScrolledText(
         root, state=tk.DISABLED, font=("Arial", 11))
     chat_box.pack(padx=15, pady=15, fill=tk.BOTH, expand=True)
+#==============THU HỒI TIN NHẮN============
+
+    def recall_message(event):
+        try:
+            index = chat_box.index(f"@{event.x},{event.y}")
+            line = int(index.split(".")[0])
+            start = f"{line}.0"
+            end = f"{line + 4}.0"
+            tags = chat_box.tag_names(index)
+            if "msg_me" in tags or "name_me" in tags or "time_me" in tags:
+                chat_box.config(state=tk.NORMAL)
+                chat_box.delete(line_start, line_end)
+                chat_box.config(state=tk.DISABLED)
+        except:
+            pass
+
+    chat_box.bind("<Double-Button-1>", recall_message)
+
+#============THU HỒI TIN NHẮN=============
+    def recall_message(event): #nháy đúp 3 lần
+        try:
+            index = chat_box.index(f"@{event.x},{event.y}")
+            line = int(index.split(".")[0])
+            tags = chat_box.tag_names(index)
+
+            if not any(t in tags for t in ("name_me", "msg_me", "time_me")):
+                return
+
+            chat_box.config(state=tk.NORMAL)
+            chat_box.delete(f"{line}.0", f"{line + 4}.0")
+            chat_box.config(state=tk.DISABLED)
+        except:
+            pass
+
+    chat_box.bind("<Double-Button-1>", recall_message)
 
     typing_label = tk.Label(
         root,
