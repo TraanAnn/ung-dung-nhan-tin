@@ -3,6 +3,7 @@ import threading
 import tkinter as tk
 import winsound
 import hashlib
+import random
 from datetime import datetime
 from tkinter import scrolledtext, messagebox
 
@@ -37,6 +38,28 @@ def replace_emoji(text):
         text = text.replace(k, v)
     return text
 
+# ===== EMOJI BAY (THÊM MỚI – KHÔNG ẢNH HƯỞNG CODE CŨ) =====
+FLY_EMOJI_KEYWORDS = ["❤️", "🔥", "👍", "😄", "😢", "😃", "😉"]
+
+def fly_emoji(emoji):
+    lbl = tk.Label(root, text=emoji, font=("Arial", 24))
+    lbl.place(x=random.randint(30, 400), y=520)
+
+    def animate(y):
+        if y < 0:
+            lbl.destroy()
+            return
+        lbl.place(y=y)
+        root.after(30, lambda: animate(y - 12))
+
+    animate(520)
+
+def check_fly_effect(text):
+    for emo in FLY_EMOJI_KEYWORDS:
+        if emo in text:
+            fly_emoji(emo)
+
+# ================= SERVER =================
 def connect_to_server():
     global client
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -166,7 +189,7 @@ def open_chat():
     send_btn = tk.Button(input_frame, text="Gửi", width=10)
     send_btn.pack(side=tk.RIGHT)
 
-    chat_box.tag_config("name_me", justify="right", foreground="#0084ff", font=("Arial", 11, "bold"))
+    chat_box.tag_config("name_me", justify="right", font=("Arial", 11, "bold"), foreground="#0084ff")
     chat_box.tag_config("name_other", justify="left", font=("Arial", 11, "bold"))
     chat_box.tag_config("msg_me", justify="right")
     chat_box.tag_config("msg_other", justify="left")
@@ -181,6 +204,8 @@ def open_chat():
             return
 
         msg = replace_emoji(msg)
+        check_fly_effect(msg)   # 🔥 THÊM EMOJI BAY
+
         client.send(f"{username}: {msg}\n".encode())
         winsound.MessageBeep()
 
@@ -208,6 +233,10 @@ def open_chat():
                     sender, content = line.split(": ", 1)
                     if sender == username:
                         continue
+
+                    content = replace_emoji(content)
+                    check_fly_effect(content)   # 🔥 EMOJI BAY KHI NHẬN
+
                     avatar = get_avatar_by_username(sender)
                     t = datetime.now().strftime("%H:%M")
 
