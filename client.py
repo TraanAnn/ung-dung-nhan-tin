@@ -16,7 +16,6 @@ root = None
 current_window = None
 
 # ===== BÁO ĐANG GÕ =====
-last_typing_sent = 0
 typing_users = {}
 is_typing = False
 
@@ -184,24 +183,7 @@ def open_chat():
     chat_box = scrolledtext.ScrolledText(
         root, state=tk.DISABLED, font=("Arial", 11))
     chat_box.pack(padx=15, pady=15, fill=tk.BOTH, expand=True)
-#==============THU HỒI TIN NHẮN============
-
-    def recall_message(event):
-        try:
-            index = chat_box.index(f"@{event.x},{event.y}")
-            line = int(index.split(".")[0])
-            start = f"{line}.0"
-            end = f"{line + 4}.0"
-            tags = chat_box.tag_names(index)
-            if "msg_me" in tags or "name_me" in tags or "time_me" in tags:
-                chat_box.config(state=tk.NORMAL)
-                chat_box.delete(line_start, line_end)
-                chat_box.config(state=tk.DISABLED)
-        except:
-            pass
-
-    chat_box.bind("<Double-Button-1>", recall_message)
-
+    
 #============THU HỒI TIN NHẮN=============
     def recall_message(event): #nháy đúp 3 lần
         try:
@@ -220,6 +202,7 @@ def open_chat():
 
     chat_box.bind("<Double-Button-1>", recall_message)
 
+    # ============HIỂN THI "ĐANG NHẬP..."=============
     typing_label = tk.Label(
         root,
         text="",
@@ -228,6 +211,14 @@ def open_chat():
     )
     typing_label.pack(anchor="w", padx=18, pady=(0, 5))
 
+    # ============ HÀM CẬP NHẬT NỘI DUNG HIỂN THị ĐANG NHẬP=============
+    def update_typing_label():
+        if typing_users:
+            typing_label.config(
+                text=", ".join(typing_users.keys()) + " đang nhập tin nhắn..."
+            )
+        else:
+            typing_label.config(text="")
     input_frame = tk.Frame(root)
     input_frame.pack(fill=tk.X, padx=15, pady=(0, 15))
 
@@ -238,26 +229,34 @@ def open_chat():
     send_btn = tk.Button(input_frame, text="Gửi", width=10)
     send_btn.pack(side=tk.RIGHT)
 
-    chat_box.tag_config("name_me", justify="right", font=("Arial", 11, "bold"), foreground="#0084ff")
-    chat_box.tag_config("name_other", justify="left", font=("Arial", 11, "bold"))
+    chat_box.tag_config("name_me", justify="right", font=("Arial", 8, "bold"), foreground="#0084ff")
+    chat_box.tag_config("name_other", justify="left", font=("Arial", 8, "bold"))
     chat_box.tag_config("msg_me", justify="right")
     chat_box.tag_config("msg_other", justify="left")
-    chat_box.tag_config("time_me", justify="right", font=("Arial", 8), foreground="gray")
-    chat_box.tag_config("time_other", justify="left", font=("Arial", 8), foreground="gray")
+    chat_box.tag_config("time_me", justify="right", font=("Arial", 11), foreground="gray")
+    chat_box.tag_config("time_other", justify="left", font=("Arial", 11), foreground="gray")
 
     my_avatar = get_avatar_by_username(username)
 
+    # ============GỬI TRẠNG THÁI ĐANG GÕ=============
+    typing_timer = None
+
     def send_typing():
-        global last_typing_sent, is_typing
-        now = datetime.now().timestamp()
-        if not is_typing or now - last_typing_sent > 1.2:
+        global is_typing, typing_timer
+
+        if not is_typing:
             try:
                 client.send(f"TYPING|{username}\n".encode())
             except:
                 pass
-            last_typing_sent = now
             is_typing = True
 
+        if typing_timer:
+            root.after_cancel(typing_timer)
+
+        typing_timer = root.after(1500, stop_typing)
+
+    # ============GỬI TRẠNG THÁI DỪNG GÕ=============
     def stop_typing():
         global is_typing
         if is_typing:
@@ -290,10 +289,6 @@ def open_chat():
         entry.delete(0, tk.END)
         stop_typing()
 
-    def check_entry_empty(event=None):
-        if entry.get().strip() == "":
-            stop_typing()
-
     def receive():
         buf = ""
         while True:
@@ -303,48 +298,23 @@ def open_chat():
             buf += data.decode()
             while "\n" in buf:
                 line, buf = buf.split("\n", 1)
-                # ===== TYPING INDICATOR =====
+                # ===== NHẬN TRẠNG THÁI BẮT ĐẦU VÀ KẾT THÚC GÕ =====
                 if line.startswith("TYPING|"):
                     sender = line.split("|", 1)[1]
 
-                    if sender == username:
-                        continue  # BỎ QUA CHÍNH MÌNH
+                    if sender != username:
+                        typing_users[sender] = True
+                        root.after(0, update_typing_label)
 
-                    typing_users[sender] = datetime.now().timestamp()
-
-                    def update_typing():
-                        now = datetime.now().timestamp()
-                        active = [
-                            u for u, t in typing_users.items()
-                            if now - t < 2
-                        ]
-                        if active:
-                            typing_label.config(
-                                text=", ".join(active) + " đang nhập tin nhắn..."
-                            )
-                        else:
-                            typing_label.config(text="")
-
-                    root.after(0, update_typing)
                     continue
 
                 if line.startswith("STOP_TYPING|"):
                     sender = line.split("|", 1)[1]
 
-                    if sender == username:
-                        continue  # BỎ QUA CHÍNH MÌNH
+                    if sender != username:
+                        typing_users.pop(sender, None)
+                        root.after(0, update_typing_label)
 
-                    typing_users.pop(sender, None)
-
-                    def update_typing():
-                        if typing_users:
-                            typing_label.config(
-                                text=", ".join(typing_users.keys()) + " đang nhập tin nhắn..."
-                            )
-                        else:
-                            typing_label.config(text="")
-
-                    root.after(0, update_typing)
                     continue
 
                 if ": " in line:
