@@ -183,7 +183,7 @@ def open_chat():
     chat_box = scrolledtext.ScrolledText(
         root, state=tk.DISABLED, font=("Arial", 11))
     chat_box.pack(padx=15, pady=15, fill=tk.BOTH, expand=True)
-    
+
 #============THU HỒI TIN NHẮN=============
     def recall_message(event): #nháy đúp 3 lần
         try:
@@ -229,12 +229,12 @@ def open_chat():
     send_btn = tk.Button(input_frame, text="Gửi", width=10)
     send_btn.pack(side=tk.RIGHT)
 
-    chat_box.tag_config("name_me", justify="right", font=("Arial", 8, "bold"), foreground="#0084ff")
-    chat_box.tag_config("name_other", justify="left", font=("Arial", 8, "bold"))
+    chat_box.tag_config("name_me", justify="right", font=("Arial", 11, "bold"), foreground="#0084ff")
+    chat_box.tag_config("name_other", justify="left", font=("Arial", 11, "bold"))
     chat_box.tag_config("msg_me", justify="right")
     chat_box.tag_config("msg_other", justify="left")
-    chat_box.tag_config("time_me", justify="right", font=("Arial", 11), foreground="gray")
-    chat_box.tag_config("time_other", justify="left", font=("Arial", 11), foreground="gray")
+    chat_box.tag_config("time_me", justify="right", font=("Arial", 8), foreground="gray")
+    chat_box.tag_config("time_other", justify="left", font=("Arial", 8), foreground="gray")
 
     my_avatar = get_avatar_by_username(username)
 
