@@ -111,17 +111,21 @@ def register_screen():
         if not u or not p:
             status.config(text="Nhập đầy đủ thông tin")
             return
-        client.send(f"REGISTER|{u}|{p}".encode())
-        if client.recv(1024).decode() == "SUCCESS":
-            current_window.after(500, login_screen)
-        else:
-            status.config(text="Tài khoản đã tồn tại")
+        try:
+            client.send(f"REGISTER|{u}|{p}".encode())
+            if client.recv(1024).decode() == "SUCCESS":
+                current_window.after(500, login_screen)
+            else:
+                status.config(text="Tài khoản đã tồn tại")
+        except:
+            status.config(text="Mất kết nối với server!")
 
     tk.Button(current_window, text="Đăng ký",
               command=do_register, width=20).pack(pady=20)
     tk.Button(current_window, text="← Quay lại",
               command=login_screen).pack()
 
+    user_entry.focus()
     current_window.mainloop()
 
 # ================= ĐĂNG NHẬP =================
@@ -169,6 +173,7 @@ def login_screen():
     tk.Button(current_window, text="Chưa có tài khoản? Đăng ký ngay",
               command=register_screen, fg="blue", bd=0).pack()
 
+    #user_entry.focus()
     current_window.mainloop()
 
 # ================= CHAT =================
