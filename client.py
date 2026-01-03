@@ -265,6 +265,7 @@ def open_chat():
     chat_box.tag_config("msg_other", justify="left")
     chat_box.tag_config("time_me", justify="right", font=("Arial", 8), foreground="gray")
     chat_box.tag_config("time_other", justify="left", font=("Arial", 8), foreground="gray")
+    chat_box.tag_config("system", foreground="gray", font=("Arial", 9, "italic"), justify="center")
 
     my_avatar = get_avatar_by_username(username)
 
@@ -326,8 +327,11 @@ def open_chat():
     
     #Xử lý socket
         #--- Xử lý hiển thị
-    def display_message(line):
-        if ": " in line:
+    def display_message(line = None, system = False):
+        chat_box.config(state=tk.NORMAL)
+        if system:
+            chat_box.insert(tk.END, line + "\n\n", "system")
+        elif line and ": " in line:
             sender, content = line.split(": ", 1)
             if sender == username:  #Bỏ hiển thị tin nhắn bản thân, k bị lặp (đã local echo)
                 return
@@ -338,13 +342,15 @@ def open_chat():
             avatar = get_avatar_by_username(sender)
             t = datetime.now().strftime("%H:%M")
 
-            chat_box.config(state=tk.NORMAL)
+            #chat_box.config(state=tk.NORMAL)
             chat_box.insert(tk.END, f"{avatar} {sender}\n", "name_other")
             chat_box.insert(tk.END, content + "\n", "msg_other")
             chat_box.insert(tk.END, t + "\n\n", "time_other")
-            chat_box.config(state=tk.DISABLED)
-            chat_box.see(tk.END)
             winsound.MessageBeep()  # Âm thông báo khi nhận tin
+
+        chat_box.config(state=tk.DISABLED)
+        chat_box.see(tk.END)
+            
 
         #--- Xử lý nhận - phân loại dữ liệu, xử lý typing
     def receive():
@@ -404,6 +410,9 @@ def open_chat():
          # Khi ra khỏi vòng lặp → server ngắt → đóng app (Mất kết nối đến sever)
         root.after(0, lambda: messagebox.showinfo("Ngắt kết nối", "Mất kết nối đến server!") or root.destroy())
     
+    #   Chào mừng
+    display_message(f"🌟 Chào mừng {username} đến với phòng chat!", system=True)
+
     entry.bind("<Return>", send_msg)
     send_btn.config(command=send_msg)
     threading.Thread(target=receive, daemon=True).start()
