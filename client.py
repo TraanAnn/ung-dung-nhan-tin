@@ -300,24 +300,29 @@ def open_chat():
         msg = entry.get().strip()
         if not msg:
             return
+        stop_typing() #-> stop typing trước khi gởi, k bị hiển thị liên tục
 
         msg = replace_emoji(msg)
         check_fly_effect(msg)   # THÊM EMOJI BAY
 
-        client.send(f"{username}: {msg}\n".encode())
-        winsound.MessageBeep()
+        full_smg = f"{username}: {msg}\n"
+        try:    #Chống crack
+            client.send(f"{username}: {msg}\n".encode())
+            winsound.MessageBeep()  #Âm thanh gởi tin nhắn
 
-        t = datetime.now().strftime("%H:%M")
+            t = datetime.now().strftime("%H:%M")
 
-        chat_box.config(state=tk.NORMAL)
-        chat_box.insert(tk.END, f"{my_avatar} {username}\n", "name_me")
-        chat_box.insert(tk.END, msg + "\n", "msg_me")
-        chat_box.insert(tk.END, t + "\n\n", "time_me")
-        chat_box.config(state=tk.DISABLED)
-        chat_box.see(tk.END)
+            chat_box.config(state=tk.NORMAL)
+            chat_box.insert(tk.END, f"{my_avatar} {username}\n", "name_me")
+            chat_box.insert(tk.END, msg + "\n", "msg_me")
+            chat_box.insert(tk.END, t + "\n\n", "time_me")
+            chat_box.config(state=tk.DISABLED)
+            chat_box.see(tk.END)
+        except:
+            messagebox.showerror("Lỗi", "Không gửi được tin nhắn!")
 
         entry.delete(0, tk.END)
-        stop_typing()
+        #stop_typing()
     
     def receive():
         buf = ""
