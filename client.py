@@ -202,13 +202,25 @@ def open_chat():
     if current_window:
         current_window.destroy()
 
+    #Giao diện
     root = tk.Tk()
     root.title(f"Chat App - {username}")
     root.geometry("600x700")
+    root.configure(bg="#f0f2f5")
 
     chat_box = scrolledtext.ScrolledText(
         root, state=tk.DISABLED, font=("Arial", 11))
     chat_box.pack(padx=15, pady=15, fill=tk.BOTH, expand=True)
+
+    input_frame = tk.Frame(root)
+    input_frame.pack(fill=tk.X, padx=15, pady=(0, 15))
+
+    entry = tk.Entry(input_frame)
+    entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+    entry.bind("<KeyPress>", lambda e: send_typing())
+
+    send_btn = tk.Button(input_frame, text="Gửi", width=10)
+    send_btn.pack(side=tk.RIGHT)
 
 #============THU HỒI TIN NHẮN=============
     def recall_message(event): #nháy đúp 3 lần
@@ -245,16 +257,8 @@ def open_chat():
             )
         else:
             typing_label.config(text="")
-    input_frame = tk.Frame(root)
-    input_frame.pack(fill=tk.X, padx=15, pady=(0, 15))
-
-    entry = tk.Entry(input_frame)
-    entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
-    entry.bind("<KeyPress>", lambda e: send_typing())
-
-    send_btn = tk.Button(input_frame, text="Gửi", width=10)
-    send_btn.pack(side=tk.RIGHT)
-
+    
+    #TAG
     chat_box.tag_config("name_me", justify="right", font=("Arial", 11, "bold"), foreground="#0084ff")
     chat_box.tag_config("name_other", justify="left", font=("Arial", 11, "bold"))
     chat_box.tag_config("msg_me", justify="right")
