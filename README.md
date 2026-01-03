@@ -1,5 +1,6 @@
 Ứng dụng nhắn tin
 
+Đối với kết nối mạng LAN: Trên máy chạy client, chạy ipconfig để lấy ip, sau đó copy mã vào client ở phần HOST ="" 
 -Đăng nhập
 -Đăng ký
 -Lưu tk - mk vào file .json
