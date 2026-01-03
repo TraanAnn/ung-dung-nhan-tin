@@ -162,11 +162,29 @@ def login_screen():
         global username
         username = user_entry.get().strip()
         pwd = pass_entry.get().strip()
-        client.send(f"LOGIN|{username}|{pwd}".encode())
-        if client.recv(1024).decode() == "SUCCESS":
-            current_window.after(500, open_chat)
-        else:
-            status.config(text="Sai thông tin")
+
+        # Thông báo trống
+        if not username or not pwd:
+            status.config(text="Vui lòng nhập đầy đủ thông tin!")
+            return
+        
+        #Xử lý trong quá trình đăng nhập
+        try:
+            client.send(f"LOGIN|{username}|{pwd}".encode("utf-8"))
+            result = client.recv(1024).decode("utf-8").strip()
+            if result == "SUCCESS":
+                status.config(text="Đăng nhập thành công!", fg="green")
+                current_window.after(1000, open_chat)
+            else:
+                status.config(text="Sai tên đăng nhập hoặc mật khẩu!")
+        except:
+            status.config(text="Mất kết nối với server!")
+            
+        # client.send(f"LOGIN|{username}|{pwd}".encode())
+        # if client.recv(1024).decode() == "SUCCESS":
+        #     current_window.after(500, open_chat)
+        # else:
+        #     status.config(text="Sai thông tin")
 
     tk.Button(current_window, text="Đăng nhập",
               command=do_login, width=20).pack(pady=20)
@@ -174,6 +192,8 @@ def login_screen():
               command=register_screen, fg="blue", bd=0).pack()
 
     #user_entry.focus()
+    
+    current_window.bind("<Return>", lambda e: do_login())
     current_window.mainloop()
 
 # ================= CHAT =================
