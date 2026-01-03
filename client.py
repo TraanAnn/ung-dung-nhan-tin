@@ -324,14 +324,38 @@ def open_chat():
         entry.delete(0, tk.END)
         #stop_typing()
     
+    #Xử lý socket
+        #--- Xử lý hiển thị
+    def display_message(line):
+        if ": " in line:
+            sender, content = line.split(": ", 1)
+            if sender == username:  #Bỏ hiển thị tin nhắn bản thân, k bị lặp (đã local echo)
+                return
+            
+            content = replace_emoji(content)
+            check_fly_effect(content)   #  EMOJI BAY KHI NHẬN
+
+            avatar = get_avatar_by_username(sender)
+            t = datetime.now().strftime("%H:%M")
+
+            chat_box.config(state=tk.NORMAL)
+            chat_box.insert(tk.END, f"{avatar} {sender}\n", "name_other")
+            chat_box.insert(tk.END, content + "\n", "msg_other")
+            chat_box.insert(tk.END, t + "\n\n", "time_other")
+            chat_box.config(state=tk.DISABLED)
+            chat_box.see(tk.END)
+            winsound.MessageBeep()  # Âm thông báo khi nhận tin
+
+        #--- Xử lý nhận - phân loại dữ liệu, xử lý typing
     def receive():
         buf = ""
         while True:
             try:    #Xử lý lỗi sever ngắt kết nối đột ngột làm chết sever/ client   
-                data = client.recv(1024)
+                data = client.recv(1024)    
                 if not data:
                     break
-                buf += data.decode("utf-8")
+                buf += data.decode("utf-8") #gom dữ liệu, nếu k sẽ bị TCP chia nhỏ gói, thất thoái dữ liệu
+                
                 while "\n" in buf:
                     line, buf = buf.split("\n", 1)
                     line = line.strip() #Sửa lỗi dòng rỗng khi gởi
@@ -352,31 +376,32 @@ def open_chat():
                             root.after(0, update_typing_label)
                         continue
 
-                    #Tin nhắn bình thường (my send)
-                    if ": " in line:
-                        sender, content = line.split(": ", 1)
-                        if sender == username:  #Bỏ hiển thị tin nhắn bản thân, k bị lặp
-                            continue
+                    #Tin nhắn bình thường (my send) -> đem về display_msg()
+                    display_message(line)
+                    # if ": " in line:
+                    #     sender, content = line.split(": ", 1)
+                    #     if sender == username:  #Bỏ hiển thị tin nhắn bản thân, k bị lặp
+                    #         continue
 
-                        content = replace_emoji(content)
-                        check_fly_effect(content)   #  EMOJI BAY KHI NHẬN
+                    #     content = replace_emoji(content)
+                    #     check_fly_effect(content)   #  EMOJI BAY KHI NHẬN
 
-                        avatar = get_avatar_by_username(sender)
-                        t = datetime.now().strftime("%H:%M")
+                    #     avatar = get_avatar_by_username(sender)
+                    #     t = datetime.now().strftime("%H:%M")
 
-                        chat_box.config(state=tk.NORMAL)
-                        chat_box.insert(tk.END, f"{avatar} {sender}\n", "name_other")
-                        chat_box.insert(tk.END, content + "\n", "msg_other")
-                        chat_box.insert(tk.END, t + "\n\n", "time_other")
-                        chat_box.config(state=tk.DISABLED)
-                        chat_box.see(tk.END)
-                        winsound.MessageBeep()  # Âm thông báo khi nhận tin
+                    #     chat_box.config(state=tk.NORMAL)
+                    #     chat_box.insert(tk.END, f"{avatar} {sender}\n", "name_other")
+                    #     chat_box.insert(tk.END, content + "\n", "msg_other")
+                    #     chat_box.insert(tk.END, t + "\n\n", "time_other")
+                    #     chat_box.config(state=tk.DISABLED)
+                    #     chat_box.see(tk.END)
+                    #     winsound.MessageBeep()  # Âm thông báo khi nhận tin
 
             except Exception as e:
                 print("Lỗi nhận dữ liệu:", e)
                 break
     
-         # Khi ra khỏi vòng lặp → server ngắt → đóng app
+         # Khi ra khỏi vòng lặp → server ngắt → đóng app (Mất kết nối đến sever)
         root.after(0, lambda: messagebox.showinfo("Ngắt kết nối", "Mất kết nối đến server!") or root.destroy())
     
     entry.bind("<Return>", send_msg)
