@@ -18,6 +18,7 @@ current_window = None
 # ===== BÁO ĐANG GÕ =====
 typing_users = {}
 is_typing = False
+typing_timer = None
 
 # ===== AVATAR ỔN ĐỊNH =====
 AVATARS = ["😄", "😎", "🤖", "🐱", "🐶", "🔥", "🌟", "🍀"]
@@ -239,7 +240,7 @@ def open_chat():
     my_avatar = get_avatar_by_username(username)
 
     # ============GỬI TRẠNG THÁI ĐANG GÕ=============
-    typing_timer = None
+    #typing_timer = None
 
     def send_typing():
         global is_typing, typing_timer
@@ -288,53 +289,62 @@ def open_chat():
 
         entry.delete(0, tk.END)
         stop_typing()
-
+    
     def receive():
         buf = ""
         while True:
-            data = client.recv(1024)
-            if not data:
-                break
-            buf += data.decode()
-            while "\n" in buf:
-                line, buf = buf.split("\n", 1)
-                # ===== NHẬN TRẠNG THÁI BẮT ĐẦU VÀ KẾT THÚC GÕ =====
-                if line.startswith("TYPING|"):
-                    sender = line.split("|", 1)[1]
+            try:    #Xử lý lỗi sever ngắt kết nối đột ngột làm chết sever/ client   
+                data = client.recv(1024)
+                if not data:
+                    break
+                buf += data.decode("utf-8")
+                while "\n" in buf:
+                    line, buf = buf.split("\n", 1)
+                    line = line.strip() #Sửa lỗi dòng rỗng khi gởi
 
-                    if sender != username:
-                        typing_users[sender] = True
-                        root.after(0, update_typing_label)
-
-                    continue
-
-                if line.startswith("STOP_TYPING|"):
-                    sender = line.split("|", 1)[1]
-
-                    if sender != username:
-                        typing_users.pop(sender, None)
-                        root.after(0, update_typing_label)
-
-                    continue
-
-                if ": " in line:
-                    sender, content = line.split(": ", 1)
-                    if sender == username:
+                    # ===== NHẬN TRẠNG THÁI BẮT ĐẦU VÀ KẾT THÚC GÕ ===== Xử lý typing
+                    if line.startswith("TYPING|"):
+                        sender = line.split("|", 1)[1]
+                        if sender != username:
+                            typing_users[sender] = True
+                            root.after(0, update_typing_label)
                         continue
 
-                    content = replace_emoji(content)
-                    check_fly_effect(content)   #  EMOJI BAY KHI NHẬN
+                    # Xử lý typing 2
+                    if line.startswith("STOP_TYPING|"):
+                        sender = line.split("|", 1)[1]
+                        if sender != username:
+                            typing_users.pop(sender, None)
+                            root.after(0, update_typing_label)
+                        continue
 
-                    avatar = get_avatar_by_username(sender)
-                    t = datetime.now().strftime("%H:%M")
+                    #Tin nhắn bình thường (my send)
+                    if ": " in line:
+                        sender, content = line.split(": ", 1)
+                        if sender == username:  #Bỏ hiển thị tin nhắn bản thân, k bị lặp
+                            continue
 
-                    chat_box.config(state=tk.NORMAL)
-                    chat_box.insert(tk.END, f"{avatar} {sender}\n", "name_other")
-                    chat_box.insert(tk.END, content + "\n", "msg_other")
-                    chat_box.insert(tk.END, t + "\n\n", "time_other")
-                    chat_box.config(state=tk.DISABLED)
-                    chat_box.see(tk.END)
+                        content = replace_emoji(content)
+                        check_fly_effect(content)   #  EMOJI BAY KHI NHẬN
 
+                        avatar = get_avatar_by_username(sender)
+                        t = datetime.now().strftime("%H:%M")
+
+                        chat_box.config(state=tk.NORMAL)
+                        chat_box.insert(tk.END, f"{avatar} {sender}\n", "name_other")
+                        chat_box.insert(tk.END, content + "\n", "msg_other")
+                        chat_box.insert(tk.END, t + "\n\n", "time_other")
+                        chat_box.config(state=tk.DISABLED)
+                        chat_box.see(tk.END)
+                        winsound.MessageBeep()  # Âm thông báo khi nhận tin
+
+            except Exception as e:
+                print("Lỗi nhận dữ liệu:", e)
+                break
+    
+         # Khi ra khỏi vòng lặp → server ngắt → đóng app
+        root.after(0, lambda: messagebox.showinfo("Ngắt kết nối", "Mất kết nối đến server!") or root.destroy())
+    
     entry.bind("<Return>", send_msg)
     send_btn.config(command=send_msg)
     threading.Thread(target=receive, daemon=True).start()
