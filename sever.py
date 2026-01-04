@@ -3,6 +3,8 @@ import threading
 import json
 import hashlib
 import os
+import tkinter as tk
+from tkinter import scrolledtext
 
 HOST = "0.0.0.0"    # Lắng nghe trên mọi interface (có thể truy cập từ mạng ngoài)  
 PORT = 12345        # Cổng server
@@ -25,6 +27,35 @@ def save_accounts():
 
 clients = []  # list of tuples [(socket, username)]
 
+# Tạo GUI admin
+admin_root = tk.Tk()
+admin_root.title("Server Admin Dashboard")
+admin_root.geometry("800x600")
+#log_box
+log_box = scrolledtext.ScrolledText(admin_root, state=tk.DISABLED)
+log_box.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+#online_label
+online_label = tk.Label(admin_root, text="Online: 0 người", fg="green", font=("Arial", 12))
+online_label.pack(anchor="w", padx=10)
+
+def admin_log(message, color="black"):
+    log_box.config(state=tk.NORMAL)
+    log_box.insert(tk.END, message + "\n", color)
+    log_box.config(state=tk.DISABLED)
+    log_box.see(tk.END)
+
+def update_online():
+    online_list = ", ".join([name for _, name in clients])
+    count = len(clients)
+    online_label.config(text=f"Online ({count}): {online_list or 'Trống'}")
+    admin_root.after(1000, update_online)  # cập nhật 1s một lần
+
+# Tag màu cho log
+log_box.tag_config("green", foreground="green")
+log_box.tag_config("red", foreground="red")
+log_box.tag_config("blue", foreground="blue")
+log_box.tag_config("magenta", foreground="magenta")
+
 def broadcast(message, sender_sock=None):
     for sock, _ in clients:
         if sock == sender_sock:
@@ -40,7 +71,8 @@ def remove_client(sock):
             name = clients[i][1]
             del clients[i]
             broadcast(f"{name} đã rời khỏi phòng chat.\n")
-            print(f"{name} đã rời khỏi phòng chat.")
+            admin_log(f"{name} đã rời khỏi phòng chat.")
+            update_online()  # Update ngay khi leave
             break
     try:
         sock.close()
@@ -61,7 +93,7 @@ def handle_client(client_sock, addr):
 
         action, username, password = parts
         authenticated = False
-
+        #Xử lý đăng ký
         if action == "REGISTER":
             if username in accounts:
                 client_sock.send("TAKEN".encode("utf-8"))
@@ -70,22 +102,24 @@ def handle_client(client_sock, addr):
                 accounts[username] = hash_password(password)
                 save_accounts()
                 client_sock.send("SUCCESS".encode("utf-8"))
-                print(f"Tài khoản mới tạo: {username} từ {addr}")
+                admin_log(f"Tài khoản mới tạo: {username} từ {addr}")
                 return  # Không vào chat, client sẽ reconnect và login
-
+        #Xử lý đăng nhập
         elif action == "LOGIN":
             if username in accounts and accounts[username] == hash_password(password):
                 client_sock.send("SUCCESS".encode("utf-8"))
                 authenticated = True
             else:
                 client_sock.send("FAIL".encode("utf-8"))
+                admin_log(f"Đăng nhập thất bại: {username} từ {addr}", "yellow")
                 return
 
         # Chỉ vào đây nếu LOGIN thành công
         if authenticated:
-            clients.append((client_sock, username))
-            print(f"{username} ({addr}) đã đăng nhập và tham gia chat")
+            clients.append((client_sock, username)) #Thêm vào ds Client hoạt động
+            admin_log(f"{username} ({addr}) đã đăng nhập và tham gia chat")
             broadcast(f"{username} đã tham gia phòng chat!\n")
+            update_online()  # Update ngay khi join
 
             # Vòng lặp chat + typing
             while True:
@@ -103,7 +137,7 @@ def handle_client(client_sock, addr):
                     break
 
     except Exception as e:
-        print(f"Lỗi với client {addr}: {e}")
+        admin_log(f"Lỗi với client {addr}: {e}")
     finally:
         remove_client(client_sock)
 
@@ -112,13 +146,19 @@ def main():
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server.bind((HOST, PORT))
     server.listen()
-    print(f"Server chạy trên port {PORT}")
-    print("Chờ client đăng ký/đăng nhập...")
+    admin_log(f"Server chạy trên port {PORT}")
+    admin_log("Chờ client đăng ký/đăng nhập...")
 
-    while True:
+    while True: #-> Chờ kết nối
         client_sock, addr = server.accept()
-        print(f"Kết nối từ {addr}")
+        admin_log(f"Kết nối từ {addr}")
         threading.Thread(target=handle_client, args=(client_sock, addr), daemon=True).start()
 
 if __name__ == "__main__":
-    main()
+    # Chạy server loop trong thread daemon (nền, không block GUI)
+    threading.Thread(target=main, daemon=True).start()
+
+    # Sau đó chạy GUI chính (foreground)
+    update_online()  # Bắt đầu cập nhật danh sách online
+    admin_log("=== SERVER ADMIN DASHBOARD KHỞI ĐỘNG ===", "green")
+    admin_root.mainloop()  # Đây là vòng lặp chính giữ cửa sổ GUI sống (Chạy GUIs)
