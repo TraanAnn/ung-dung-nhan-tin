@@ -4,8 +4,8 @@ import json
 import hashlib
 import os
 
-HOST = "0.0.0.0"
-PORT = 12345
+HOST = "0.0.0.0"    # Lắng nghe trên mọi interface (có thể truy cập từ mạng ngoài)  
+PORT = 12345        # Cổng server
 
 ACCOUNTS_FILE = "accounts.json"
 
@@ -23,7 +23,7 @@ def save_accounts():
     with open(ACCOUNTS_FILE, "w", encoding="utf-8") as f:
         json.dump(accounts, f, ensure_ascii=False, indent=4)
 
-clients = []  # [(socket, username)]
+clients = []  # list of tuples [(socket, username)]
 
 def broadcast(message, sender_sock=None):
     for sock, _ in clients:
@@ -65,6 +65,7 @@ def handle_client(client_sock, addr):
         if action == "REGISTER":
             if username in accounts:
                 client_sock.send("TAKEN".encode("utf-8"))
+                return
             else:
                 accounts[username] = hash_password(password)
                 save_accounts()
